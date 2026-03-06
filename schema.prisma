@@ -1,0 +1,348 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClipSource {
+  YOUTUBE
+  INSTAGRAM
+  OTHER
+}
+
+enum ClipStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum IngestPlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+enum ProcessingStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum TranscriptSource {
+  YOUTUBE_CAPTIONS
+  ASR
+  USER_PROVIDED
+}
+
+enum SummaryQuality {
+  TRANSCRIPT
+  ASR
+  METADATA_ONLY
+}
+
+enum TagType {
+  GENERIC
+  SHOPPING
+  READING
+  CONCEPT
+  EXERCISE
+  QUOTE
+}
+
+enum EntityType {
+  PRODUCT
+  BOOK
+  CONCEPT
+  EXERCISE
+  QUOTE
+}
+
+enum WishlistStatus {
+  INTERESTED
+  SHORTLISTED
+  BOUGHT
+}
+
+enum ReadingStatus {
+  TO_READ
+  READING
+  DONE
+}
+
+model User {
+  id               String            @id @default(uuid()) @db.Uuid
+  displayName      String            @map("display_name") @db.Text
+  email            String?           @unique @db.Text
+  phoneE164        String?           @unique @map("phone_e164") @db.Text
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  clips            Clip[]
+  tags             Tag[]
+  notes            UserNote[]
+  wishlistItems    WishlistItem[]
+  readingListItems ReadingListItem[]
+  quoteCards       QuoteCard[]
+  flashcards       Flashcard[]
+  routines         Routine[]
+  ingestEvents     ClipIngestEvent[]
+
+  @@map("USER")
+}
+
+model Clip {
+  id                String               @id @default(uuid()) @db.Uuid
+  userId            String               @map("user_id") @db.Uuid
+  canonicalUrl      String               @map("canonical_url") @db.Text
+  source            ClipSource
+  sourceVideoId     String?              @map("source_video_id") @db.Text
+  title             String?              @db.Text
+  author            String?              @db.Text
+  thumbnailUrl      String?              @map("thumbnail_url") @db.Text
+  durationSeconds   Int?                 @map("duration_seconds")
+  status            ClipStatus           @default(PROCESSING)
+  lastErrorCode     String?              @map("last_error_code") @db.Text
+  lastErrorMessage  String?              @map("last_error_message") @db.Text
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt        DateTime?            @map("archived_at") @db.Timestamptz(6)
+  deletedAt         DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingestEvents      ClipIngestEvent[]
+  processingRuns    ClipProcessingRun[]
+  transcripts       ClipTranscript[]
+  summaryVersions   ClipSummaryVersion[]
+  entities          ClipEntity[]
+  notes             UserNote[]
+  clipTags          ClipTag[]
+  flashcards        Flashcard[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("CLIP")
+}
+
+model ClipIngestEvent {
+  id             String        @id @default(uuid()) @db.Uuid
+  clipId         String        @map("clip_id") @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  platform       IngestPlatform
+  rawSharedText  String?       @map("raw_shared_text") @db.Text
+  rawUrl         String?       @map("raw_url") @db.Text
+  noteAtCapture  String?       @map("note_at_capture") @db.Text
+  clientEventId  String?       @unique @map("client_event_id") @db.Text
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  clip           Clip          @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clipId])
+  @@index([userId])
+  @@map("CLIP_INGEST_EVENT")
+}
+
+model ClipProcessingRun {
+  id              String           @id @default(uuid()) @db.Uuid
+  clipId          String           @map("clip_id") @db.Uuid
+  pipelineVersion String?          @map("pipeline_version") @db.Text
+  status          ProcessingStatus
+  errorCode       String?          @map("error_code") @db.Text
+  errorMessage    String?          @map("error_message") @db.Text
+  startedAt       DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt      DateTime?        @map("finished_at") @db.Timestamptz(6)
+  clip            Clip             @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@index([clipId])
+  @@map("CLIP_PROCESSING_RUN")
+}
+
+model ClipTranscript {
+  id         String           @id @default(uuid()) @db.Uuid
+  clipId     String           @map("clip_id") @db.Uuid
+  source     TranscriptSource
+  language   String?          @db.Text
+  textContent String          @map("text_content") @db.Text
+  confidence Float?
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  clip       Clip             @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@index([clipId])
+  @@map("CLIP_TRANSCRIPT")
+}
+
+model ClipSummaryVersion {
+  id          String        @id @default(uuid()) @db.Uuid
+  clipId      String        @map("clip_id") @db.Uuid
+  model       String?       @db.Text
+  quality     SummaryQuality
+  summaryJson Json          @map("summary_json")
+  isCurrent   Boolean       @default(false) @map("is_current")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  clip        Clip          @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@index([clipId])
+  @@index([clipId, isCurrent])
+  @@map("CLIP_SUMMARY_VERSION")
+}
+
+model Tag {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  name      String    @db.Text
+  type      TagType
+  isPinned  Boolean   @default(false) @map("is_pinned")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clipTags  ClipTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("TAG")
+}
+
+model ClipTag {
+  clipId    String   @map("clip_id") @db.Uuid
+  tagId     String   @map("tag_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  clip      Clip     @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([clipId, tagId])
+  @@index([tagId])
+  @@map("CLIP_TAG")
+}
+
+model UserNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  clipId    String   @map("clip_id") @db.Uuid
+  noteText  String   @map("note_text") @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clip      Clip     @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([clipId])
+  @@map("USER_NOTE")
+}
+
+model ClipEntity {
+  id            String            @id @default(uuid()) @db.Uuid
+  clipId         String            @map("clip_id") @db.Uuid
+  entityType     EntityType        @map("entity_type")
+  displayText    String            @map("display_text") @db.Text
+  dataJson       Json?             @map("data_json")
+  confidence     Float?
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  clip           Clip              @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  wishlistItems  WishlistItem[]
+  readingItems   ReadingListItem[]
+  quoteCards     QuoteCard[]
+  flashcards     Flashcard[]
+  routineItems   RoutineItem[]
+
+  @@index([clipId])
+  @@index([entityType])
+  @@map("CLIP_ENTITY")
+}
+
+model WishlistItem {
+  id           String         @id @default(uuid()) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  clipEntityId String         @map("clip_entity_id") @db.Uuid
+  status       WishlistStatus @default(INTERESTED)
+  note         String?        @db.Text
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clipEntity   ClipEntity     @relation(fields: [clipEntityId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([clipEntityId])
+  @@map("WISHLIST_ITEM")
+}
+
+model ReadingListItem {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  clipEntityId String        @map("clip_entity_id") @db.Uuid
+  status       ReadingStatus @default(TO_READ)
+  startedAt    DateTime?     @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime?     @map("finished_at") @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clipEntity   ClipEntity    @relation(fields: [clipEntityId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([clipEntityId])
+  @@map("READING_LIST_ITEM")
+}
+
+model QuoteCard {
+  id               String     @id @default(uuid()) @db.Uuid
+  userId           String     @map("user_id") @db.Uuid
+  clipEntityId     String     @map("clip_entity_id") @db.Uuid
+  pinned           Boolean    @default(false)
+  reminderSchedule Json?      @map("reminder_schedule")
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clipEntity       ClipEntity @relation(fields: [clipEntityId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([clipEntityId])
+  @@map("QUOTE_CARD")
+}
+
+model Flashcard {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @map("user_id") @db.Uuid
+  clipId       String      @map("clip_id") @db.Uuid
+  clipEntityId String?     @map("clip_entity_id") @db.Uuid
+  front        String      @db.Text
+  back         String      @db.Text
+  easeFactor   Int?        @map("ease_factor")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clip         Clip        @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  clipEntity   ClipEntity? @relation(fields: [clipEntityId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([clipId])
+  @@index([clipEntityId])
+  @@map("FLASHCARD")
+}
+
+model Routine {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  name         String        @db.Text
+  scheduleJson Json?         @map("schedule_json")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items        RoutineItem[]
+
+  @@index([userId])
+  @@map("ROUTINE")
+}
+
+model RoutineItem {
+  id               String      @id @default(uuid()) @db.Uuid
+  routineId        String      @map("routine_id") @db.Uuid
+  clipEntityId     String      @map("clip_entity_id") @db.Uuid
+  orderIndex       Int         @map("order_index")
+  prescriptionJson Json?       @map("prescription_json")
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  routine          Routine     @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  clipEntity       ClipEntity  @relation(fields: [clipEntityId], references: [id], onDelete: Cascade)
+
+  @@unique([routineId, orderIndex])
+  @@index([clipEntityId])
+  @@map("ROUTINE_ITEM")
+}
