@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npx prisma generate && next build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "DATABASE_URL": "@database-url",
+    "REDIS_URL": "@redis-url",
+    "ANTHROPIC_API_KEY": "@anthropic-api-key",
+    "JWT_SECRET": "@jwt-secret"
+  }
+}

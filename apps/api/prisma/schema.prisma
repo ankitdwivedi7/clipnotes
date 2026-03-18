@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  clerkId      String   @unique
+  email        String?  @unique
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clips       Clip[]
+  collections Collection[]
+  userTags    UserTag[]
+}
+
+model Clip {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  originalUrl  String
+  canonicalUrl String
+  platform     Platform
+
+  title        String?
+  thumbnailUrl String?
+  authorName   String?
+  authorHandle String?
+  durationSec  Int?
+
+  transcript   String?  @db.Text
+
+  summary      String?  @db.Text
+  keyTakeaways String[]
+
+  status        ClipStatus @default(QUEUED)
+  failureReason String?
+
+  userNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags     ClipTag[]
+  entities Entity[]
+
+  @@unique([userId, canonicalUrl])
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  clips       ClipTag[]
+  collections Collection[]
+  userTags    UserTag[]
+}
+
+// User's personal tag library — pre-defined tags they want to categorize clips into
+model UserTag {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tagId])
+  @@index([userId])
+}
+
+model ClipTag {
+  clipId String
+  tagId  String
+  clip   Clip   @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id])
+  source TagSource @default(USER)
+
+  @@id([clipId, tagId])
+}
+
+model Entity {
+  id     String     @id @default(cuid())
+  clipId String
+  clip   Clip       @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  name   String
+  type   EntityType
+
+  @@index([clipId])
+  @@index([name])
+}
+
+model Collection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  name   String
+
+  tags Tag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+}
+
+enum Platform {
+  YOUTUBE_SHORTS
+  INSTAGRAM_REELS
+}
+
+enum ClipStatus {
+  QUEUED
+  FETCHING_METADATA
+  EXTRACTING_TRANSCRIPT
+  SUMMARIZING
+  COMPLETED
+  FAILED
+}
+
+enum TagSource {
+  USER
+  AI_SUGGESTED
+}
+
+enum EntityType {
+  PERSON
+  PRODUCT
+  BRAND
+  PLACE
+  CONCEPT
+}
