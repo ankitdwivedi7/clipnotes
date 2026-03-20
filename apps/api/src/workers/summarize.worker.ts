@@ -15,7 +15,7 @@ interface SummaryResult {
 }
 
 async function callClaudeWithRetry(
-  params: Parameters<typeof anthropic.messages.create>[0],
+  params: Anthropic.MessageCreateParamsNonStreaming,
   maxRetries = 3,
 ): Promise<Anthropic.Message> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
