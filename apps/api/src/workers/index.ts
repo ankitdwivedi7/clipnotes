@@ -1,4 +1,4 @@
-import { Worker, Job } from "bullmq";
+import { Worker, Job, type ConnectionOptions } from "bullmq";
 import IORedis from "ioredis";
 import { PrismaClient } from "@prisma/client";
 import { processMetadata } from "./metadata.worker";
@@ -47,7 +47,7 @@ async function processClip(job: Job<{ clipId: string }>) {
 }
 
 const worker = new Worker("clip-processing", processClip, {
-  connection: redis,
+  connection: redis as unknown as ConnectionOptions,
   concurrency: 3,
   settings: {
     backoffStrategy: (attemptsMade: number) => {
