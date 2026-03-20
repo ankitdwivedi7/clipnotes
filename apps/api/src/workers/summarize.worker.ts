@@ -28,8 +28,9 @@ async function callClaudeWithRetry(
 
       if (isRetryable && attempt < maxRetries) {
         const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        const apiErr = error as InstanceType<typeof Anthropic.APIError>;
         console.warn(
-          `[Summarize] Anthropic API error (${(error as Anthropic.APIError).status}), retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`,
+          `[Summarize] Anthropic API error (${apiErr.status}), retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`,
         );
         await new Promise((r) => setTimeout(r, delay));
         continue;
