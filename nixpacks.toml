@@ -4,11 +4,3 @@ cmds = ["corepack enable && corepack prepare pnpm@9.15.0 --activate"]
 
 [phases.install]
 cmds = ["pnpm install --frozen-lockfile"]
-
-[phases.build]
-cmds = [
-  "cd apps/api && npx prisma generate && npx prisma migrate deploy && npx next build"
-]
-
-[start]
-cmd = "cd apps/api && npx next start --port ${PORT:-3000}"
