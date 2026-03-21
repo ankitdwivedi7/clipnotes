@@ -8,24 +8,26 @@ import {
   StyleSheet,
 } from "react-native";
 import { useAuth } from "@/lib/auth-context";
-import { useRouter, Link } from "expo-router";
 
 export default function SignIn() {
-  const { signIn } = useAuth();
-  const router = useRouter();
+  const { signIn, signUp } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSignIn = async () => {
+  const handleSubmit = async () => {
     setLoading(true);
     setError("");
     try {
-      await signIn(email, password);
-      router.replace("/(tabs)");
+      if (isSignUp) {
+        await signUp(email, password);
+      } else {
+        await signIn(email, password);
+      }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Sign in failed");
+      setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -34,18 +36,19 @@ export default function SignIn() {
   return (
     <View style={s.container}>
       <Text style={s.title}>ClipNotes</Text>
-      <Text style={s.subtitle}>Sign in to your account</Text>
+      <Text style={s.subtitle}>{isSignUp ? "Create your account" : "Sign in to your account"}</Text>
       {error ? <Text style={s.error}>{error}</Text> : null}
       <TextInput style={s.input} placeholder="Email" placeholderTextColor="#666" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
       <TextInput style={s.input} placeholder="Password" placeholderTextColor="#666" value={password} onChangeText={setPassword} secureTextEntry />
-      <TouchableOpacity style={s.button} onPress={handleSignIn} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Sign In</Text>}
+      <TouchableOpacity style={s.button} onPress={handleSubmit} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>{isSignUp ? "Sign Up" : "Sign In"}</Text>}
       </TouchableOpacity>
-      <Link href="/(auth)/sign-up" asChild>
-        <TouchableOpacity style={s.link}>
-          <Text style={s.linkText}>Don't have an account? <Text style={s.accent}>Sign Up</Text></Text>
-        </TouchableOpacity>
-      </Link>
+      <TouchableOpacity style={s.link} onPress={() => { setIsSignUp(!isSignUp); setError(""); }}>
+        <Text style={s.linkText}>
+          {isSignUp ? "Already have an account? " : "Don't have an account? "}
+          <Text style={s.accent}>{isSignUp ? "Sign In" : "Sign Up"}</Text>
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }

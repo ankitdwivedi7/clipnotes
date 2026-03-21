@@ -9,13 +9,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { setTokenGetter } from "@/lib/api";
 import { registerForPushNotifications } from "@/lib/notifications";
+import SignIn from "./(auth)/sign-in";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
       retry: 2,
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours — keep cache for offline
+      gcTime: 1000 * 60 * 60 * 24,
     },
   },
 });
@@ -43,7 +44,7 @@ function PushNotificationSetup() {
 }
 
 function AppContent() {
-  const { isLoaded } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
 
   if (!isLoaded) {
     return (
@@ -52,6 +53,10 @@ function AppContent() {
         <Text style={s.loadingText}>Loading...</Text>
       </View>
     );
+  }
+
+  if (!isSignedIn) {
+    return <SignIn />;
   }
 
   return (
@@ -65,8 +70,8 @@ function AppContent() {
           contentStyle: { backgroundColor: "#0f0f23" },
         }}
       >
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="ingest" options={{ headerShown: false }} />
         <Stack.Screen name="clip/[id]" options={{ title: "Clip Detail" }} />
         <Stack.Screen name="tag/[name]" options={{ title: "Tag" }} />
@@ -93,5 +98,4 @@ export default function RootLayout() {
 const s = StyleSheet.create({
   loading: { flex: 1, backgroundColor: "#1a1a2e", alignItems: "center", justifyContent: "center" },
   loadingText: { color: "#999", marginTop: 12 },
-  errorText: { color: "#e94560", fontSize: 16, fontWeight: "600" },
 });

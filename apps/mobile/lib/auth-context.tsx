@@ -29,8 +29,8 @@ const AuthContext = createContext<AuthContextType>({
   getToken: async () => null,
 });
 
-const TOKEN_KEY = "clipnotes_auth_token";
-const USER_KEY = "clipnotes_auth_user";
+const TOKEN_KEY = "clipnotes_auth_token_v2";
+const USER_KEY = "clipnotes_auth_user_v2";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -94,11 +94,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserEmail(data.user.email);
   }, []);
 
-  const signOut = useCallback(async () => {
-    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+  const signOut = useCallback(() => {
     setToken(null);
     setUserId(null);
     setUserEmail(null);
+    AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]).catch(() => {});
   }, []);
 
   const isSignedIn = !!token;
