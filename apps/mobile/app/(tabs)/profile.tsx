@@ -13,46 +13,78 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 
+type Mode = "signIn" | "signUp" | "forgotPassword";
+
 export default function ProfileScreen() {
-  const { userEmail, signIn, signUp } = useAuth();
+  const { userEmail, signIn, signUp, resetPassword } = useAuth();
   const queryClient = useQueryClient();
   const [loggedOut, setLoggedOut] = useState(false);
 
-  // --- Inline sign-in form state ---
-  const [isSignUp, setIsSignUp] = useState(false);
+  // --- Inline auth form state ---
+  const [mode, setMode] = useState<Mode>("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const switchMode = (newMode: Mode) => {
+    setMode(newMode);
+    setError("");
+    setPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  };
 
   if (loggedOut) {
     const handleSubmit = async () => {
       setLoading(true);
       setError("");
       try {
-        if (isSignUp) {
+        if (mode === "signUp") {
           await signUp(email, password);
+        } else if (mode === "forgotPassword") {
+          if (!email) { setError("Please enter your email"); return; }
+          if (newPassword.length < 6) { setError("Password must be at least 6 characters"); return; }
+          if (newPassword !== confirmPassword) { setError("Passwords do not match"); return; }
+          await resetPassword(email, newPassword);
+          Alert.alert("Success", "Your password has been reset and you are now signed in.");
         } else {
           await signIn(email, password);
         }
-        // Success - go back to profile view
         setLoggedOut(false);
         setEmail("");
         setPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Authentication failed");
+        setError(err instanceof Error ? err.message : "Something went wrong");
       } finally {
         setLoading(false);
       }
     };
 
+    const title =
+      mode === "signUp"
+        ? "Create your account"
+        : mode === "forgotPassword"
+          ? "Reset your password"
+          : "Sign in to your account";
+
+    const buttonLabel =
+      mode === "signUp"
+        ? "Sign Up"
+        : mode === "forgotPassword"
+          ? "Reset Password"
+          : "Sign In";
+
     return (
       <View style={s.authContainer}>
         <Text style={s.title}>ClipNotes</Text>
-        <Text style={s.subtitle}>
-          {isSignUp ? "Create your account" : "Sign in to your account"}
-        </Text>
+        <Text style={s.subtitle}>{title}</Text>
         {error ? <Text style={s.error}>{error}</Text> : null}
+
         <TextInput
           style={s.input}
           placeholder="Email"
@@ -62,39 +94,74 @@ export default function ProfileScreen() {
           autoCapitalize="none"
           keyboardType="email-address"
         />
-        <TextInput
-          style={s.input}
-          placeholder="Password"
-          placeholderTextColor="#666"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TouchableOpacity
-          style={s.button}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
+
+        {mode === "forgotPassword" ? (
+          <>
+            <TextInput
+              style={s.input}
+              placeholder="New Password"
+              placeholderTextColor="#666"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+            />
+            <TextInput
+              style={s.input}
+              placeholder="Confirm New Password"
+              placeholderTextColor="#666"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
+          </>
+        ) : (
+          <TextInput
+            style={s.input}
+            placeholder="Password"
+            placeholderTextColor="#666"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+        )}
+
+        <TouchableOpacity style={s.button} onPress={handleSubmit} disabled={loading}>
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={s.buttonText}>
-              {isSignUp ? "Sign Up" : "Sign In"}
-            </Text>
+            <Text style={s.buttonText}>{buttonLabel}</Text>
           )}
         </TouchableOpacity>
-        <TouchableOpacity
-          style={s.link}
-          onPress={() => {
-            setIsSignUp(!isSignUp);
-            setError("");
-          }}
-        >
-          <Text style={s.linkText}>
-            {isSignUp ? "Already have an account? " : "Don't have an account? "}
-            <Text style={s.accent}>{isSignUp ? "Sign In" : "Sign Up"}</Text>
-          </Text>
-        </TouchableOpacity>
+
+        {mode === "signIn" && (
+          <>
+            <TouchableOpacity style={s.link} onPress={() => switchMode("forgotPassword")}>
+              <Text style={s.accent}>Forgot Password?</Text>
+            </TouchableOpacity>
+            <View style={{ height: 16 }} />
+            <TouchableOpacity style={s.link} onPress={() => switchMode("signUp")}>
+              <Text style={s.linkText}>
+                Don't have an account? <Text style={s.accent}>Sign Up</Text>
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {mode === "signUp" && (
+          <TouchableOpacity style={s.link} onPress={() => switchMode("signIn")}>
+            <Text style={s.linkText}>
+              Already have an account? <Text style={s.accent}>Sign In</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {mode === "forgotPassword" && (
+          <TouchableOpacity style={s.link} onPress={() => switchMode("signIn")}>
+            <Text style={s.linkText}>
+              Back to <Text style={s.accent}>Sign In</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -117,11 +184,8 @@ export default function ProfileScreen() {
                 text: "Log Out",
                 style: "destructive",
                 onPress: () => {
-                  // Clear all stored data
                   AsyncStorage.clear().catch(() => {});
-                  // Clear react-query cache
                   queryClient.clear();
-                  // Show login form
                   setLoggedOut(true);
                 },
               },

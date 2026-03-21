@@ -15,6 +15,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => void;
+  resetPassword: (email: string, newPassword: string) => Promise<void>;
   getToken: () => Promise<string | null>;
 };
 
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => {},
   signUp: async () => {},
   signOut: () => {},
+  resetPassword: async () => {},
   getToken: async () => null,
 });
 
@@ -101,6 +103,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]).catch(() => {});
   }, []);
 
+  const resetPassword = useCallback(async (email: string, newPassword: string) => {
+    const res = await fetch(`${API_URL}/api/v1/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Password reset failed");
+
+    // If the API returned a token (successful reset), auto-login
+    if (data.token) {
+      await AsyncStorage.setItem(TOKEN_KEY, data.token);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      setToken(data.token);
+      setUserId(data.user.id);
+      setUserEmail(data.user.email);
+    }
+  }, []);
+
   const isSignedIn = !!token;
 
   return (
@@ -113,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        resetPassword,
         getToken,
       }}
     >
