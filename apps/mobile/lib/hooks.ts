@@ -101,6 +101,17 @@ export function useDeleteClip() {
   });
 }
 
+export function useRetryClip() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.retryClip(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+    },
+  });
+}
+
 export function useTags() {
   return useQuery({
     queryKey: ["tags"],

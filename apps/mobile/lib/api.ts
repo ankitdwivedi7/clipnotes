@@ -84,6 +84,13 @@ export function deleteClip(id: string) {
   });
 }
 
+export function retryClip(id: string) {
+  return apiFetch<{ success: boolean; status: string }>(
+    `/api/v1/clips/${id}/retry`,
+    { method: "POST" }
+  );
+}
+
 export function fetchTags() {
   return apiFetch<Tag[]>("/api/v1/tags");
 }

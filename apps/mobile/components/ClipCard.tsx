@@ -14,7 +14,7 @@ import { useRouter } from "expo-router";
 import type { Clip } from "@clipnotes/shared";
 import { TagPill } from "./TagPill";
 import { ProcessingIndicator } from "./ProcessingIndicator";
-import { useDeleteClip } from "@/lib/hooks";
+import { useDeleteClip, useRetryClip } from "@/lib/hooks";
 
 interface Props {
   clip: Clip;
@@ -23,6 +23,7 @@ interface Props {
 export function ClipCard({ clip }: Props) {
   const router = useRouter();
   const deleteClip = useDeleteClip();
+  const retryClip = useRetryClip();
   const swipeRef = useRef<Swipeable>(null);
   const isProcessing = !["COMPLETED", "FAILED"].includes(clip.status);
 
@@ -112,6 +113,19 @@ export function ClipCard({ clip }: Props) {
             <View style={s.failedRow}>
               <Ionicons name="alert-circle" size={14} color="#e94560" />
               <Text style={s.failed}>Processing failed</Text>
+              <TouchableOpacity
+                style={s.retryBtn}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  retryClip.mutate(clip.id);
+                }}
+                disabled={retryClip.isPending}
+              >
+                <Ionicons name="refresh" size={13} color="#6366f1" />
+                <Text style={s.retryText}>
+                  {retryClip.isPending ? "Retrying..." : "Retry"}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={s.tags}>
@@ -144,7 +158,19 @@ const s = StyleSheet.create({
   title: { color: "#fff", fontWeight: "600", fontSize: 15, lineHeight: 20 },
   author: { color: "#888", fontSize: 13, marginTop: 3 },
   failed: { color: "#e94560", fontSize: 12, marginLeft: 4 },
-  failedRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
+  failedRow: { flexDirection: "row", alignItems: "center", marginTop: 8, flexWrap: "wrap" },
+  retryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 10,
+    backgroundColor: "#1a1a2e",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#6366f1",
+  },
+  retryText: { color: "#6366f1", fontSize: 11, fontWeight: "600", marginLeft: 3 },
   tags: { flexDirection: "row", flexWrap: "wrap", marginTop: 8, gap: 4 },
   deleteAction: {
     backgroundColor: "#e94560",
